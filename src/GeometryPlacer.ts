@@ -6,7 +6,6 @@ type worldObject = {
     position: THREE.Vector3
 }
 
-
 type buildData = {
     atlas: string,
     schem: number[],
@@ -158,9 +157,13 @@ export class GeometryPlacer {
         blockgeometry.setAttribute('uv', new THREE.BufferAttribute(uvArray, 2));
         blockgeometry.computeVertexNormals();
 
-        let mesh = new THREE.Mesh(blockgeometry, material);
+        let mesh = new THREE.InstancedMesh(blockgeometry, material, 10);
 
         mesh.position.set(x, y, z);
+        mesh.updateMatrix();
+
+        //performanceee
+        mesh.matrixAutoUpdate = false;
 
         return mesh;
     }
@@ -171,9 +174,9 @@ export class GeometryPlacer {
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
         texture.premultiplyAlpha = true;
+        // texture.encoding = THREE.sRGBEncoding;
 
         let material = new THREE.MeshLambertMaterial({ map: texture, transparent: true, flatShading: false });
-        material.flatShading = false;
         return material;
     }
 }
