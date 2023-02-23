@@ -6,7 +6,7 @@ import * as TWEEN from '@tweenjs/tween.js'
 import { GeometryPlacer } from './GeometryPlacer';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import {EffectComposer} from 'three/examples/jsm/postprocessing/EffectComposer';
-// import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass';
+import {RenderPass} from 'three/examples/jsm/postprocessing/RenderPass';
 import {SSAOPass} from 'three/examples/jsm/postprocessing/SSAOPass';
 
 import Stats from 'stats.js';
@@ -32,7 +32,7 @@ const renderer = new THREE.WebGLRenderer({
     stencil: false,
     depth: false,
     antialias: false,
-    powerPreference: "high-performance"
+    // powerPreference: "high-performance"
 });
 
 renderer.info.autoReset = false;
@@ -66,8 +66,6 @@ type buildData = {
 renderer.setPixelRatio( window.devicePixelRatio );
 renderer.setSize( window.innerWidth, window.innerHeight );
 
-
-
 renderer.setClearColor(0x007777, 0);
 
 THREE.ColorManagement.legacyMode = false;
@@ -79,9 +77,9 @@ const placer = new GeometryPlacer(scene, data);
 placer.place(raycastableObjects);
 
 // add the base64 image as img in the html
-// const img = document.createElement('img');
-// img.src = "data:image/png;base64, " + data.atlas;
-// document.body.appendChild(img);
+const img = document.createElement('img');
+img.src = "data:image/png;base64, " + data.atlas;
+document.body.appendChild(img);
 
 // give a diagonal rotation to the camera
 camera.rotation.x = -0.3;
@@ -98,6 +96,12 @@ const controls = new OrbitControls( camera, renderer.domElement );
 controls.screenSpacePanning = false;
 controls.minDistance = 1;
 controls.maxDistance = 1000;
+
+//render a hitbox around the selected object
+const hitbox = new THREE.Mesh(new THREE.BoxGeometry(data.sizeX, data.sizeY, data.sizeZ), new THREE.MeshBasicMaterial({ wireframe: true}));
+hitbox.visible = false;
+scene.add(hitbox);
+
 
 // controls.addEventListener( 'change', animate ); 
 
@@ -203,9 +207,10 @@ function animate() {
     requestAnimationFrame(animate);
     TWEEN.update();
     composer.render();
+    // renderer.render(scene, camera);
     statsInstance.update();
 
-    console.log(renderer.info.render);
+    // console.log(renderer.info.render);
     renderer.info.reset();
 }
 

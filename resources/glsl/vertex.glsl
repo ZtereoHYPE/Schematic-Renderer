@@ -1,22 +1,24 @@
-/*
-uniform mat4 modelMatrix;
-uniform mat4 modelViewMatrix;
-uniform mat4 projectionMatrix;
-uniform mat4 viewMatrix;
-uniform mat3 normalMatrix;
-uniform vec3 cameraPosition;
 
-attribute vec3 position;
-attribute vec3 normal;
-attribute vec2 uv;
-*/
+// uniform mat4 modelMatrix;
+// uniform mat4 modelViewMatrix;
+// uniform mat4 projectionMatrix;
+// uniform mat4 instanceMatrix;
+// uniform mat4 viewMatrix;
+// uniform mat3 normalMatrix;
+// uniform vec3 cameraPosition;
 
-out float vertex_ID;
-out vec3 vertex_normal;
+// in vec3 position;
+// attribute vec3 normal;
+// attribute vec2 uv;
+
+in vec2 uvOffsets;
+
+// out vec2 vUv;
+out vec2 vUvOffsets;
 
 void main() {
-    vertex_ID = position.x;
-    vertex_normal = normal;
-    mat4 mvp = projectionMatrix * modelViewMatrix * modelViewMatrix;
+    // vUv = uv;
+    vUvOffsets = uvOffsets;
+    mat4 mvp = projectionMatrix * modelViewMatrix * instanceMatrix;
     gl_Position = mvp * vec4(position, 1.0);
 }
