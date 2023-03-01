@@ -1,14 +1,9 @@
 import * as THREE from 'three';
-import { BufferGeometry, Material, Scene } from 'three';
+import { Scene } from 'three';
 import vertexSource from '../resources/glsl/vertex.glsl?raw';
 import fragmentSource from '../resources/glsl/fragment.glsl?raw';
 
-type WorldObject = {
-    mesh: THREE.Mesh,
-    position: THREE.Vector3
-}
-
-type BuildData = {
+export type BuildData = {
     atlas: string,
     schem: number[],
     sizeX: number,
@@ -36,6 +31,14 @@ class UnpackedSchematic {
     private sizeY: number;
     private sizeZ: number;
 
+    private textureCount: number;
+    private textureData: string;
+    private textureDictionary: {
+        [index: string]: {
+            [index: string]: number
+        }
+    };
+
     private schem: number[] = [];
 
     private blockCount: Map<number, number> = new Map();
@@ -59,44 +62,63 @@ class UnpackedSchematic {
         this.sizeY = data.sizeY;
         this.sizeZ = data.sizeZ;
 
-        console.log(this.schem.length);
-    }
-
-    public getBlockAt(x: number, y: number, z: number) {
-        return this.schem[z + y * this.sizeX + x * this.sizeX * this.sizeZ];
+        this.textureCount = data.textureCount;
+        this.textureData = data.atlas;
+        this.textureDictionary = data.usedTextures;
     }
 
     public getBlockCount() {
         return this.blockCount;
-    }// hitbox.visible = false;
-
+    }
 
     public getSchem() {
         return this.schem;
+    }
+
+    public getSizeX() {
+        return this.sizeX;
+    }
+
+    public getSizeY() {
+        return this.sizeY;
+    }
+
+    public getSizeZ() {
+        return this.sizeZ;
+    }
+
+    public getTextureCount() {
+        return this.textureCount;
+    }
+
+    public getTextureData() {
+        return this.textureData;
+    }
+
+    public getTextureDictionary() {
+        return this.textureDictionary;
     }
 }
 
 export class GeometryPlacer {
     private scene: Scene;
-    private data: BuildData;
+    private schematic: UnpackedSchematic;
     private uvCache: { [index: string]: Float32Array } = {};
-    private geometry: THREE.InstancedBufferGeometry | undefined;
 
     constructor(scene: Scene, data: BuildData) {
         this.scene = scene;
-        this.data = data;
+        this.schematic = new UnpackedSchematic(data);
     }
 
-    public place(raycastableObjects: WorldObject[]) {
+    public place(raycastableObjects: THREE.Mesh[]) {
         // memory unpacking in nice object --> object has counts of each material
-        const schematic = new UnpackedSchematic(this.data);
 
         // material preparation (Texture / WebGLMatrialObject)
         const material = this.generateMaterial();
 
         // geometry preparation (BufferGeometry)
         const typeToUV = new Map<number, THREE.BufferAttribute>();
-        const blockTypes = schematic.getBlockCount().keys();
+        const blockTypes = this.schematic.getBlockCount().keys();
         for (let blockType of blockTypes) {
             const uv = this.unwrapUVs(blockType);
             if (uv) {
@@ -108,20 +130,20 @@ export class GeometryPlacer {
         const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
         boxGeometry.computeVertexNormals();
         let instancedMeshes = new Map<number, THREE.InstancedMesh>();
-        for (let blockType of schematic.getBlockCount().keys()) {
+        for (let blockType of this.schematic.getBlockCount().keys()) {
             const uv = typeToUV.get(blockType);
             if (uv) {
                 const geometry = new THREE.InstancedBufferGeometry();
                 geometry.copy(boxGeometry);
-                geometry.setAttribute('uvOffsets', uv);
-                geometry.attributes.uvOffsets.needsUpdate = true;
 
-                const mesh = new THREE.InstancedMesh(geometry, material, schematic.getBlockCount().get(blockType)!);
-
-                console.log("BlockType: " + blockType + " | BlockCount: " + schematic.getBlockCount().get(blockType)!);
+                geometry.setAttribute('uv', uv);
+                geometry.attributes.uv.needsUpdate = true;
+                
+                const mesh = new THREE.InstancedMesh(geometry, material, this.schematic.getBlockCount().get(blockType)!);
 
                 instancedMeshes.set(blockType, mesh);
                 this.scene.add(mesh);
+                raycastableObjects.push(mesh);
             }
         }
 
@@ -130,20 +152,18 @@ export class GeometryPlacer {
         let dummy = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1));
         let index = 0;
 
-        for (let x = 0; x < this.data.sizeX; x++) {
-            for (let y = 0; y < this.data.sizeY; y++) {
-                for (let z = 0; z < this.data.sizeZ; z++) {
-                    const blockType = schematic.getSchem()[index];
+        for (let x = 0; x < this.schematic.getSizeX(); x++) {
+            for (let y = 0; y < this.schematic.getSizeY(); y++) {
+                for (let z = 0; z < this.schematic.getSizeZ(); z++) {
+                    const blockType = this.schematic.getSchem()[index];
                     const mesh = instancedMeshes.get(blockType);
                     if (mesh) {
                         dummy.position.set(x, y, z);
                         dummy.updateMatrix();
-                        
-                        console.log("x: " + x + " | y: " + y + " | z: " + z);
-
+                    
                         let currentIndex = blockIndexes.get(blockType) ?? 0;
                         mesh.setMatrixAt(currentIndex, dummy.matrix);
-
+                        
                         blockIndexes.set(blockType, currentIndex + 1);
                     }
                     index++;
@@ -151,15 +171,15 @@ export class GeometryPlacer {
             }
         }
 
-        // update all meshes
-        for (let mesh of instancedMeshes.values()) {
-            mesh.instanceMatrix.needsUpdate = true;
-            mesh.matrixAutoUpdate = false;
-        }
+        // // update all meshes
+        // for (let mesh of instancedMeshes.values()) {
+        //     mesh.instanceMatrix.needsUpdate = true;
+        //     mesh.matrixAutoUpdate = true;
+        // }
     }
 
     private mapTextures(mapping: Float32Array, stride: number, offset: number) {
-        let textureAmount = this.data.textureCount;
+        let textureAmount = this.schematic.getTextureCount();
         let u0 = (stride) / textureAmount + 0.00001;
         let v0 = 0.0;
         let u1 = (stride + 1) / textureAmount - 0.00001;
@@ -176,7 +196,7 @@ export class GeometryPlacer {
 
     private unwrapUVs(blockType: number) {
         if (!this.uvCache[blockType]) {
-            let blockUVData = this.data.usedTextures[blockType];
+            let blockUVData = this.schematic.getTextureDictionary()[blockType];
 
             if (Object.keys(blockUVData).length == 0) return undefined;
 
@@ -236,25 +256,8 @@ export class GeometryPlacer {
         return this.uvCache[blockType];
     }
 
-    private generateBlockMesh(x: number, y: number, z: number, uvArray: Float32Array, material: Material) {
-        let blockgeometry = new THREE.BoxGeometry(1, 1, 1);
-
-        blockgeometry.setAttribute('uv', new THREE.BufferAttribute(uvArray, 2));
-        blockgeometry.computeVertexNormals();
-
-        let mesh = new THREE.Mesh(blockgeometry, material);
-
-        mesh.position.set(x, y, z);
-        mesh.updateMatrix();
-
-        //performanceee
-        mesh.matrixAutoUpdate = false;
-
-        return mesh;
-    }
-
     private generateMaterial() {
-        let texture = new THREE.TextureLoader().load('data:image/png;base64, ' + this.data.atlas);
+        const texture = new THREE.TextureLoader().load('data:image/png;base64, ' + this.schematic.getTextureData());
 
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
