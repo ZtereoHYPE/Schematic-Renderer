@@ -1,21 +1,6 @@
 import * as THREE from 'three';
-import { Scene } from 'three';
 import vertexSource from '../resources/glsl/vertex.glsl?raw';
 import fragmentSource from '../resources/glsl/fragment.glsl?raw';
-
-export type BuildData = {
-    atlas: string,
-    schem: number[],
-    sizeX: number,
-    sizeY: number,
-    sizeZ: number,
-    usedTextures: {
-        [index: string]: {
-            [index: string]: number
-        }
-    },
-    textureCount: number
-}
 
 enum Offset {
     TOP = 16,
@@ -26,53 +11,107 @@ enum Offset {
     BOTTOM = 24
 }
 
-class UnpackedSchematic {
+export class UnpackedSchematic {
     private sizeX: number;
     private sizeY: number;
     private sizeZ: number;
 
-    private textureCount: number;
-    private textureData: string;
+    private textureCount: number | undefined;
+    private textureData: string | undefined;
     private textureDictionary: {
         [index: string]: {
             [index: string]: number
         }
-    };
+    } | undefined;
 
-    private schem: number[] = [];
+    private schematic: number[] = [];
 
-    private blockCount: Map<number, number> = new Map();
+    private blockCounts: Map<number, number> = new Map();
 
-    constructor(data: BuildData) {
-        for (let i = 0; i < data.schem.length; i+=2) {
-            let blockType = data.schem[i];
-            let blockAmount = data.schem[i + 1];
+    constructor(sizeX: number, sizeY: number, sizeZ: number) {
+        this.sizeX = sizeX;
+        this.sizeY = sizeY;
+        this.sizeZ = sizeZ;
 
-            if (this.blockCount.has(blockType)) {
-                this.blockCount.set(blockType, this.blockCount.get(blockType)! + blockAmount);
-            } else {
-                this.blockCount.set(blockType, blockAmount);
-            }
-        
-            for (let j = 0; j < blockAmount; j++) 
-                this.schem.push(blockType);
+        this.schematic = [];
+    }
+
+    public setBlock(type: number, x: number, y: number, z: number) {
+        if (!this.blockCounts.has(type) && type != 0) 
+            this.blockCounts.set(type, 0);
+
+        this.blockCounts.set(type, this.blockCounts.get(type)! + 1);
+
+        if (x < 0 || x >= this.sizeX || y < 0 || y >= this.sizeY || z < 0 || z >= this.sizeZ)
+            throw new Error("Block is out of bounds!");
+
+        this.schematic[this.getSchematicLocation(x, y, z)] = type;
+    }
+
+    public pushBlock(type: number) {
+        if (!this.blockCounts.has(type) && type != 0)
+            this.blockCounts.set(type, 0);
+
+        this.blockCounts.set(type, this.blockCounts.get(type)! + 1);
+
+        if (this.schematic.length > this.sizeX * this.sizeY * this.sizeZ) {
+            throw new Error("Schematic is full!");
         }
 
-        this.sizeX = data.sizeX;
-        this.sizeY = data.sizeY;
-        this.sizeZ = data.sizeZ;
+        this.schematic.push(type);
+    }
 
-        this.textureCount = data.textureCount;
-        this.textureData = data.atlas;
-        this.textureDictionary = data.usedTextures;
+    // todo: might be wrong
+    private getSchematicLocation(x: number, y: number, z: number) {
+        return x + y * this.sizeX + z * this.sizeX * this.sizeY;
+    }
+
+    /**
+     * @param {string} texture The texture data in a base64 encoded png where all the textures are lined up from left to right.
+     * @param {number} textureCount The total amount of textures in the texture data.
+     * @param {number} textureResolution The resolution of the textures in the texture data.
+     * @param {{ [index: string]: { [index: string]: number } }} textureMapping The mapping that the block types will have for the textures.
+     * 
+     * The format of the mapping is as follows:
+     * ```json
+     * {
+     * .    "blockType": {
+     * .        "textureMapping": textureIndex,
+     * .        "textureMapping2": textureIndex2,
+     * .        [...]
+     * .    }
+     * }
+     * ```
+     * 
+     * Where blockType is an index used to determine the current block type, 
+     * textureMapping is the mapping that the block type will have for the textures,
+     * and textureIndex is the index of the texture in the texture data (starting from 0).
+     * 
+     * Available textureMappings are:
+     * - top
+     * - bottom
+     * - north
+     * - east
+     * - south
+     * - front (north)
+     * - all (6 sides)
+     * - sides (north, east, south, west)
+     * - end (top, bottom)
+     * @returns {void}
+     * @memberof UnpackedSchematic
+     */
+    public setTextureData(texture: string, textureCount: number, textureMapping: { [index: string]: { [index: string]: number } }) {
+        this.textureData = texture;
+        this.textureCount = textureCount;
+        this.textureDictionary = textureMapping;
     }
 
     public getBlockCount() {
-        return this.blockCount;
+        return this.blockCounts;
     }
 
     public getSchem() {
-        return this.schem;
+        return this.schematic;
     }
 
     public getSizeX() {
@@ -87,12 +126,12 @@ class UnpackedSchematic {
         return this.sizeZ;
     }
 
-    public getTextureCount() {
-        return this.textureCount;
-    }
-
     public getTextureData() {
         return this.textureData;
+    }
+
+    public getTextureCount() {
+        return this.textureCount;
     }
 
     public getTextureDictionary() {
@@ -101,18 +140,15 @@ class UnpackedSchematic {
 }
 
 export class GeometryPlacer {
-    private scene: Scene;
-    private schematic: UnpackedSchematic;
+    private schematic: UnpackedSchematic | undefined;
     private uvCache: { [index: string]: Float32Array } = {};
 
-    constructor(scene: Scene, data: BuildData) {
-        this.scene = scene;
-        this.schematic = new UnpackedSchematic(data);
-    }
+    public create(schematic: UnpackedSchematic, output: (mesh: THREE.InstancedMesh) => void) {
+        if (!schematic.getTextureCount() || !schematic.getTextureData() || !schematic.getTextureDictionary())
+            throw new Error("Texture data is not set!");
 
-    public place(raycastableObjects: THREE.Mesh[]) {
-        // memory unpacking in nice object --> object has counts of each material
-
+        this.schematic = schematic;
+    
         // material preparation (Texture / WebGLMatrialObject)
         const material = this.generateMaterial();
 
@@ -142,8 +178,10 @@ export class GeometryPlacer {
                 const mesh = new THREE.InstancedMesh(geometry, material, this.schematic.getBlockCount().get(blockType)!);
 
                 instancedMeshes.set(blockType, mesh);
-                this.scene.add(mesh);
-                raycastableObjects.push(mesh);
+
+                output(mesh);
+                // this.scene.add(mesh);
+                // raycastableObjects.push(mesh);
             }
         }
 
@@ -179,10 +217,10 @@ export class GeometryPlacer {
     }
 
     private mapTextures(mapping: Float32Array, stride: number, offset: number) {
-        let textureAmount = this.schematic.getTextureCount();
-        let u0 = (stride) / textureAmount + 0.00001;
+        let textureAmount = this.schematic!.getTextureCount()!;
+        let u0 = (stride + 1) / textureAmount + 0.00001;
         let v0 = 0.0;
-        let u1 = (stride + 1) / textureAmount - 0.00001;
+        let u1 = (stride + 1 + 1) / textureAmount - 0.00001;
         let v1 = 1.0;
     
         let uvs = [u1, v1, u0, v1, u1, v0, u0, v0];
@@ -196,7 +234,7 @@ export class GeometryPlacer {
 
     private unwrapUVs(blockType: number) {
         if (!this.uvCache[blockType]) {
-            let blockUVData = this.schematic.getTextureDictionary()[blockType];
+            let blockUVData = this.schematic!.getTextureDictionary()![blockType];
 
             if (Object.keys(blockUVData).length == 0) return undefined;
 
@@ -257,7 +295,7 @@ export class GeometryPlacer {
     }
 
     private generateMaterial() {
-        const texture = new THREE.TextureLoader().load('data:image/png;base64, ' + this.schematic.getTextureData());
+        const texture = new THREE.TextureLoader().load('data:image/png;base64, ' + this.schematic!.getTextureData());
 
         texture.magFilter = THREE.NearestFilter;
         texture.minFilter = THREE.NearestFilter;
