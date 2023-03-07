@@ -233,8 +233,17 @@ export class SchematicRenderer {
 
     public getCamera() {
         if (!this.initialised) {
+            console.error("SchematicRenderer not initialised");
             return;
         }
         return this.camera!;
+    }
+
+    public getControls() {
+        if (!this.initialised) {
+            console.error("SchematicRenderer not initialised");
+            return;
+        }
+        return this.controls!;
     }
 }

@@ -22,6 +22,8 @@ type BuildData = {
     textureCount: number
 }
 
+type Selection = {object: [THREE.InstancedMesh, number], oldLocation: THREE.Matrix4, inProgress: boolean};
+
 function unpackSchematic(data: BuildData): UnpackedSchematic {
     const schematic = new UnpackedSchematic(data.sizeX, data.sizeY, data.sizeZ);
 
@@ -45,7 +47,15 @@ const schemRend = new SchematicRenderer(canvas);
 schemRend.init();
 schemRend.setSchematic(unpackSchematic(data));
 
+
+let selected: Selection | null = null;
+
+
 schemRend.onRaycast(RaycastEvents.HOVERED, (mesh, index) => {
+    if (selected && selected.object[0] === mesh && selected.object[1] === index) {
+        return;
+    }
+
     let sourceColor: THREE.Color = new THREE.Color(0x000000);
     if(mesh.instanceColor)
         mesh.getColorAt(index, sourceColor);
@@ -80,8 +90,18 @@ schemRend.onRaycast(RaycastEvents.UNHOVERED, (mesh, index) => {
 });
 
 schemRend.onRaycast(RaycastEvents.CLICKED, (mesh, index) => {
+    if(selected) {
+        return;
+    }
+    
     let dummy = new THREE.Object3D();
     mesh.getMatrixAt(index, dummy.matrix)
+    
+    selected = {
+        object: [mesh, index],
+        oldLocation: dummy.matrix.clone(),
+        inProgress: false
+    };
 
     let dirVector = new THREE.Vector3(0, 0, 0);
     schemRend.getCamera()!.getWorldDirection(dirVector);
@@ -109,5 +129,35 @@ schemRend.onRaycast(RaycastEvents.CLICKED, (mesh, index) => {
 
     matrixTween.start();
 });
+
+schemRend.getControls()!.addEventListener('change', () => {
+    if(selected == null || selected.inProgress) return;
+
+    selected.inProgress = true;
+
+    let source = new THREE.Matrix4();
+    selected.object[0].getMatrixAt(selected.object[1], source);
+
+    let target = selected.oldLocation.clone();
+
+    let duration = 500;
+
+    const matrixTween = new TWEEN.Tween( source )
+        .to( target, duration )
+        .easing( TWEEN.Easing.Exponential.Out )
+        .onUpdate( () => {
+            selected!.object[0].setMatrixAt(selected!.object[1], source);
+            selected!.object[0].instanceMatrix!.needsUpdate = true;
+        })
+        .onComplete(() => {
+            selected = null;
+        });
+
+    matrixTween.start();
+});
+
+    
+
+        
 
 schemRend.start();
