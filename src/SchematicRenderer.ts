@@ -25,7 +25,6 @@ export class SchematicRenderer {
     private renderer: THREE.WebGLRenderer | undefined;
     private composer: EffectComposer | undefined;
 
-    //todo: a
     private raycaster: THREE.Raycaster | undefined;
     private selectables: Set<THREE.InstancedMesh> = new Set();
     private hovered: [THREE.InstancedMesh, number] | null = null;
@@ -61,10 +60,7 @@ export class SchematicRenderer {
     }
 
     public start() {
-        if (!this.initialised) {
-            console.warn("SchematicRenderer not initialised");
-            return;
-        }
+        this.assertInitialised();
 
         this.renderLoop();
     }
@@ -80,10 +76,7 @@ export class SchematicRenderer {
     }
     
     public setSchematic(schematic: UnpackedSchematic) {
-        if (!this.initialised) {
-            console.warn("SchematicRenderer not initialised");
-            return;
-        }
+        this.assertInitialised();
 
         // clear everything
         this.scene!.remove(...this.scene!.children);
@@ -118,15 +111,21 @@ export class SchematicRenderer {
         });
         
         renderer.info.autoReset = false;
-
-        //todo: find a better way to cap pixel ratio
-        let pixelRatio = Math.min(window.devicePixelRatio, 2)
-        renderer.setPixelRatio(pixelRatio);
-
+        
         renderer.setClearColor(0x007777, 0.5);
-
+        
         //todo: find a way to set it to the canvas size
-        // renderer.setSize( window.innerWidth, window.innerHeight );
+        
+        const adaptCanvasSize = () => {
+            let pixelRatio = Math.min(window.devicePixelRatio, 2)
+
+            renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
+            renderer.setPixelRatio(pixelRatio);
+        }
+
+        window.addEventListener('resize', adaptCanvasSize);
+
+        adaptCanvasSize();
     
         this.renderer = renderer;
     }
@@ -173,7 +172,6 @@ export class SchematicRenderer {
         const delay = 10;
 
         const onPointerMove = async (event: { clientX: number; clientY: number; }) => {
-            //todo: add a timeout to prevent spamming
             if (Date.now() - lastMove < delay) return;
             lastMove = Date.now();
 
@@ -232,18 +230,18 @@ export class SchematicRenderer {
     }
 
     public getCamera() {
-        if (!this.initialised) {
-            console.error("SchematicRenderer not initialised");
-            return;
-        }
+        this.assertInitialised();
         return this.camera!;
     }
 
     public getControls() {
-        if (!this.initialised) {
-            console.error("SchematicRenderer not initialised");
-            return;
-        }
+        this.assertInitialised();
         return this.controls!;
+    }
+
+    private assertInitialised() {
+        if (!this.initialised) {
+            throw new Error("SchematicRenderer not initialised");
+        }
     }
 }
