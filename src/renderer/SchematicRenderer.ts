@@ -48,7 +48,7 @@ export class SchematicRenderer {
     }
 
     // init method to start renderer
-    public init(fov: number = 75, debugControls: boolean = true) {
+    public init(fov: number = 75, debugControls: boolean = false) {
         this.statsInstance.showPanel(0);
         this.statsInstance.dom.style.position = 'absolute';
         this.statsInstance.dom.style.right = '0px';
@@ -73,6 +73,10 @@ export class SchematicRenderer {
     private renderLoop() {
         requestAnimationFrame(this.renderLoop.bind(this));
         TWEEN.update();
+
+        if (this.controls instanceof FloatControls) {
+            this.controls.update();
+        }
 
         this.composer!.render();
         this.statsInstance.update();
