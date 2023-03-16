@@ -13,13 +13,16 @@
 in vec3 instanceColor;
 
 out vec2 vUv;
-out vec3 vNormal;
 out vec4 vInstanceColor;
+out float vDarken;
 
 void main() {
     vUv = uv;
-    vNormal = normal;
     vInstanceColor = vec4(instanceColor, 0.0);
+
+    float weast = abs(dot(vec3(1.0, 0.0, 0.0), normal));
+    float nouth = abs(dot(vec3(0.0, 0.0, 1.0), normal));
+    vDarken = 1.0 - (weast * 0.25 + nouth * 0.15);
     
     mat4 mvp = projectionMatrix * modelViewMatrix * instanceMatrix;
     gl_Position = mvp * vec4(position, 1.0);
