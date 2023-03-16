@@ -10,7 +10,7 @@ import { GeometryPlacer } from "./generation/GeometryGenerator";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import Stats from 'stats.js';
 import { UnpackedSchematic } from "./generation/UnpackedSchematic";
-import { FloatControls } from "../controls/FloatControls";
+import { FollowCursorControls } from "../controls/FollowCursorControls";
 
 export enum RaycastEvents {
     HOVERED,
@@ -39,7 +39,7 @@ export class SchematicRenderer {
     private clickCallbacks: Array<(mesh: THREE.InstancedMesh, index: number) => void> = [];
 
     private statsInstance = new Stats();
-    private controls: OrbitControls | FloatControls | undefined;
+    private controls: OrbitControls | FollowCursorControls | undefined;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -74,7 +74,7 @@ export class SchematicRenderer {
         requestAnimationFrame(this.renderLoop.bind(this));
         TWEEN.update();
 
-        if (this.controls instanceof FloatControls) {
+        if (this.controls instanceof FollowCursorControls) {
             this.controls.update();
         }
 
@@ -161,7 +161,7 @@ export class SchematicRenderer {
 
             this.controls = controls;
         } else {
-            this.controls = new FloatControls(this.camera!, this.renderer!.domElement);
+            this.controls = new FollowCursorControls(this.camera!, this.renderer!.domElement);
             //todo: figure out a nice controls model (rotates slightly as you move the cursor to face it???)
             // const controls = new PointerLockControls(this.camera!, this.renderer!.domElement);
             
