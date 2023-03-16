@@ -14,12 +14,12 @@ in vec3 instanceColor;
 
 out vec2 vUv;
 out vec3 vNormal;
-out vec3 vColor;
+out vec4 vInstanceColor;
 
 void main() {
     vUv = uv;
     vNormal = normal;
-    vColor = instanceColor;
+    vInstanceColor = vec4(instanceColor, 0.0);
     
     mat4 mvp = projectionMatrix * modelViewMatrix * instanceMatrix;
     gl_Position = mvp * vec4(position, 1.0);
