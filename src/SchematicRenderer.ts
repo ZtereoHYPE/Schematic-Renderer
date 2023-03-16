@@ -1,11 +1,14 @@
 // import THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
-import * as TWEEN from '@tweenjs/tween.js'
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
-import Stats from 'stats.js';
-import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass";
-import { GeometryPlacer, UnpackedSchematic } from "./GeometryPlacer";
 import * as THREE from "three";
+import * as TWEEN from '@tweenjs/tween.js'
+
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
+import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass";
+
+import { GeometryPlacer, UnpackedSchematic } from "./GeometryPlacer";
+
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import Stats from 'stats.js';
 
 export enum RaycastEvents {
     HOVERED,
@@ -241,7 +244,20 @@ export class SchematicRenderer {
 
     private assertInitialised() {
         if (!this.initialised) {
-            throw new Error("SchematicRenderer not initialised");
+            throw new Error("SchematicRenderer was not initialised");
         }
+    }
+
+    public setSchematicLocation(pos: THREE.Vector3, duration: number) {
+        this.assertInitialised();
+
+        this.scene!.traverse((object) => {
+            let source: THREE.Vector3 = object.position;
+        
+            new TWEEN.Tween(source)
+                .to(pos, duration)
+                .easing(TWEEN.Easing.Exponential.InOut)
+                .start();
+        });
     }
 }

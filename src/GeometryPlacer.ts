@@ -180,8 +180,6 @@ export class GeometryPlacer {
                 instancedMeshes.set(blockType, mesh);
 
                 output(mesh);
-                // this.scene.add(mesh);
-                // raycastableObjects.push(mesh);
             }
         }
 
@@ -209,11 +207,11 @@ export class GeometryPlacer {
             }
         }
 
-        // // update all meshes
-        // for (let mesh of instancedMeshes.values()) {
-        //     mesh.instanceMatrix.needsUpdate = true;
-        //     mesh.matrixAutoUpdate = true;
-        // }
+        // update all meshes
+        for (let mesh of instancedMeshes.values()) {
+            mesh.matrixAutoUpdate = false;
+            mesh.instanceMatrix.needsUpdate = true;
+        }
     }
 
     private mapTextures(mapping: Float32Array, stride: number, offset: number) {
@@ -302,7 +300,6 @@ export class GeometryPlacer {
         texture.premultiplyAlpha = true;
         // texture.encoding = THREE.sRGBEncoding;
 
-        // let material = new THREE.MeshLambertMaterial({ map: texture, transparent: false, flatShading: false });
         const material = new THREE.ShaderMaterial({
             uniforms: {
                 uTexture: { 
