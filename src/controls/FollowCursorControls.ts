@@ -11,10 +11,10 @@ export class FollowCursorControls {
     private camera: THREE.Camera;
 
     public enabled: boolean = true;
-    public target: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
-    public distance: number = 20;
+    private _target: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
+    private _distance: number = 20;
     public panSpeed: number = 1.0;
-    public tiltFactor: number = 2.0;
+    public tiltFactor: number = 5.0;
 
     private windowHalfX: number;
     private windowHalfY: number;
@@ -27,7 +27,7 @@ export class FollowCursorControls {
         this.windowHalfX = domElement.clientWidth / 2;
         this.windowHalfY = domElement.clientHeight / 2;
 
-        this.camera.position.x = this.target.x + this.distance;
+        this.camera.position.x = this._target.x + this._distance;
         // this.camera.position.y = this.target.y;
         // this.camera.position.z = this.target.z;
 
@@ -44,7 +44,7 @@ export class FollowCursorControls {
     public update() {
         if (!this.enabled) return;
 
-        const target = this.target;
+        const target = this._target;
         const camera = this.camera;
 
         const correctedMouseX = this.mouseX / this.windowHalfX * this.tiltFactor;
@@ -59,5 +59,23 @@ export class FollowCursorControls {
         camera.position.y += cameraDeltaY
 
         camera.lookAt( target );
+    }
+
+    public set distance(distance: number) {
+        this._distance = distance;
+        this.camera.position.x = this.target.x + this._distance;
+    }
+
+    public get distance() {
+        return this._distance;
+    }
+
+    public set target(target: THREE.Vector3) {
+        this._target = target;
+        this.camera.position.x = this.target.x + this._distance;
+    }
+
+    public get target() {
+        return this._target;
     }
 }

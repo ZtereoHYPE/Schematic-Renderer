@@ -48,7 +48,7 @@ export class SchematicRenderer {
     }
 
     // init method to start renderer
-    public init(fov: number = 75, debugControls: boolean = false) {
+    public init(fov: number = 75) {
         this.statsInstance.showPanel(0);
         this.statsInstance.dom.style.position = 'absolute';
         this.statsInstance.dom.style.right = '0px';
@@ -58,7 +58,7 @@ export class SchematicRenderer {
         this.initScene(fov);
         this.initRenderer();
         this.initRaycaster();
-        this.initControls(debugControls);
+        this.initControls();
         this.initPostProcessing();
         
         this.initialised = true;        
@@ -97,7 +97,7 @@ export class SchematicRenderer {
 
         this.placer.create(schematic, this.addToScene.bind(this));
 
-        // this.controls!.target = new THREE.Vector3(schematic.getSizeX() / 2, schematic.getSizeY() / 2, schematic.getSizeZ() / 2);
+        this.controls!.target = new THREE.Vector3(schematic.getSizeX() / 2, schematic.getSizeY() / 2, schematic.getSizeZ() / 2);
         this.controls!.update();
     }
 
@@ -150,22 +150,11 @@ export class SchematicRenderer {
         this.composer = composer;
     }
 
-    private initControls(debug: boolean) {
-        if (debug) {
-            const controls = new OrbitControls(this.camera!, this.renderer!.domElement);
-            controls.screenSpacePanning = false;
-            controls.minDistance = 1;
-            controls.maxDistance = 1000;
-            controls.target.set(0, 0, 0);
-            controls.update();
+    private initControls() {
+        const controls = new FollowCursorControls(this.camera!, this.renderer!.domElement);
+        controls.distance = 25;
 
-            this.controls = controls;
-        } else {
-            this.controls = new FollowCursorControls(this.camera!, this.renderer!.domElement);
-            //todo: figure out a nice controls model (rotates slightly as you move the cursor to face it???)
-            // const controls = new PointerLockControls(this.camera!, this.renderer!.domElement);
-            
-        }
+        this.controls = controls;
     }
     
     private addToScene(mesh: THREE.InstancedMesh) {
