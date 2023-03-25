@@ -15,6 +15,7 @@ export class FollowCursorControls {
     private _distance: number = 20;
     public panSpeed: number = 1.0;
     public tiltFactor: number = 5.0;
+    public shift: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
 
     private windowHalfX: number;
     private windowHalfY: number;
@@ -28,9 +29,6 @@ export class FollowCursorControls {
         this.windowHalfY = domElement.clientHeight / 2;
 
         this.camera.position.x = this._target.x + this._distance;
-        // this.camera.position.y = this.target.y;
-        // this.camera.position.z = this.target.z;
-
         const onMouseMove = (event: MouseEvent) => {
             if (!this.enabled) return;
 
@@ -49,8 +47,6 @@ export class FollowCursorControls {
 
         const correctedMouseX = this.mouseX / this.windowHalfX * this.tiltFactor;
         const correctedMouseY = this.mouseY / this.windowHalfY * this.tiltFactor;
-
-        console.log(correctedMouseX, correctedMouseY)
         
         const cameraDeltaZ = (correctedMouseX + target.z - camera.position.z) * 0.10 * this.panSpeed;
         const cameraDeltaY = (correctedMouseY + target.y - camera.position.y) * 0.10 * this.panSpeed;
@@ -58,7 +54,7 @@ export class FollowCursorControls {
         camera.position.z += cameraDeltaZ
         camera.position.y += cameraDeltaY
 
-        camera.lookAt( target );
+        camera.lookAt(target.clone().add(this.shift));
     }
 
     public set distance(distance: number) {

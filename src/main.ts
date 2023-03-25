@@ -28,17 +28,18 @@ type Selection = {
     isReturning: boolean
 };
 
-
-
 const canvas = document.querySelector('#canvas') as HTMLCanvasElement;
 
 const schemRend = new SchematicRenderer(canvas);
 
 schemRend.init();
 schemRend.setSchematic(unpackSchematic(data));
+schemRend.getControls().distance = 25;
+schemRend.getControls().target;
+schemRend.getControls().shift.set(0, 0, 10);
+
 
 let selected: Selection | null = null;
-
 
 schemRend.onRaycast(RaycastEvents.HOVERED, (mesh, index) => {
     if (selected) {
@@ -124,43 +125,47 @@ schemRend.onRaycast(RaycastEvents.CLICKED, (mesh, index) => {
     matrixTween.start();
 });
 
-// schemRend.getControls()!.addEventListener('change', () => {
-//     if (selected == null || selected.isReturning) return;
+document.onkeydown = (ev: KeyboardEvent) => {
+    if (ev.key != "Escape") return;
+    
+    if (selected == null || selected.isReturning) return;
 
-//     selected.currentAnimation?.stop();
+    selected.currentAnimation?.stop();
+    selected.currentAnimation?.stop(); //in case its the zooming animation (followed by another) ((todo: fix this selected system its a nightmare))
 
-//     selected.currentAnimation?.stop(); //in case its the zooming animation (followed by another) ((todo: fix this selected system its a nightmare))
+    let source = new THREE.Matrix4();
+    selected.object[0].getMatrixAt(selected.object[1], source);
 
-//     let source = new THREE.Matrix4();
-//     selected.object[0].getMatrixAt(selected.object[1], source);
+    let target = selected.oldLocation.clone();
 
-//     let target = selected.oldLocation.clone();
+    let duration = 500;
+    schemRend.setSchematicLocation(new Vector3(0, 0, 0), duration);
 
-//     let duration = 500;
-//     schemRend.setSchematicLocation(new Vector3(0, 0, 0), duration);
+    const matrixTween = new TWEEN.Tween(source)
+        .to(target, duration)
+        .easing(TWEEN.Easing.Exponential.InOut)
+        .onUpdate(() => {
+            if (!selected) return;
 
-//     const matrixTween = new TWEEN.Tween(source)
-//         .to(target, duration)
-//         .easing(TWEEN.Easing.Exponential.InOut)
-//         .onUpdate(() => {
-//             if (!selected) return;
+            selected!.object[0].setMatrixAt(selected!.object[1], source);
+            selected!.object[0].instanceMatrix!.needsUpdate = true;
+        })
+        .onComplete(() => {
+            selected = null;
+            schemRend.getControls().enabled = true;
+        });
 
-//             selected!.object[0].setMatrixAt(selected!.object[1], source);
-//             selected!.object[0].instanceMatrix!.needsUpdate = true;
-//         })
-//         .onComplete(() => {
-//             selected = null;
-//         });
+    selected.currentAnimation = matrixTween;
+    selected.isReturning = true;
 
-//     selected.currentAnimation = matrixTween;
-//     selected.isReturning = true;
-
-//     matrixTween.start();
-// });
+    matrixTween.start();
+};
 
 
 function animateCommitSlide(mesh: THREE.InstancedMesh, index: number) {
     if (!selected) return;
+
+    schemRend.getControls().enabled = false;
 
     let source = new Matrix4();
     mesh.getMatrixAt(index, source)
@@ -188,7 +193,6 @@ function animateCommitSlide(mesh: THREE.InstancedMesh, index: number) {
             mesh.setMatrixAt(index, source);
             mesh.instanceMatrix!.needsUpdate = true;
         })
-        .onComplete(() => schemRend.getControls().enabled = true)
 
     selected!.currentAnimation = matrixTween;
 
