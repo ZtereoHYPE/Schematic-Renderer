@@ -5,9 +5,8 @@ import * as TWEEN from '@tweenjs/tween.js'
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
 import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass";
 
-import { GeometryPlacer } from "./generation/GeometryGenerator";
+import { GeometryGenerator } from "./generation/GeometryGenerator";
 
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import Stats from 'stats.js';
 import { UnpackedSchematic } from "./generation/UnpackedSchematic";
 import { FollowCursorControls } from "../controls/FollowCursorControls";
@@ -21,7 +20,7 @@ export enum RaycastEvents {
 export class SchematicRenderer {
     private initialised: boolean = false;
 
-    private placer: GeometryPlacer = new GeometryPlacer();
+    private placer: GeometryGenerator = new GeometryGenerator();
 
     private canvas: HTMLCanvasElement;
     private scene: THREE.Scene | undefined;
@@ -39,7 +38,7 @@ export class SchematicRenderer {
     private clickCallbacks: Array<(mesh: THREE.InstancedMesh, index: number) => void> = [];
 
     private statsInstance = new Stats();
-    private controls: OrbitControls | FollowCursorControls | undefined;
+    private controls: FollowCursorControls | undefined;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -59,7 +58,7 @@ export class SchematicRenderer {
         this.initRenderer();
         this.initRaycaster();
         this.initControls();
-        this.initPostProcessing();
+        // this.initPostProcessing();
         
         this.initialised = true;        
     }
@@ -78,7 +77,8 @@ export class SchematicRenderer {
             this.controls.update();
         }
 
-        this.composer!.render();
+        // this.composer!.render();
+        this.renderer!.render(this.scene!, this.camera!);
         this.statsInstance.update();
         // console.log(this.renderer!.info.render);
         this.renderer!.info.reset();
@@ -112,27 +112,34 @@ export class SchematicRenderer {
         //todo: make renderer more efficient by removing unused features ie stencil buffer, depth buffer, etc (constructor)
         const renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
-            alpha: true,
             stencil: false,
             depth: true,
             antialias: false,
-            powerPreference: "high-performance"
         });
         
         renderer.info.autoReset = false;
-        
         renderer.setClearColor(0x0, 0);
         
-        //todo: fix the weird bug a way to set it to the canvas size
         const adaptCanvasSize = () => {
-            let pixelRatio = Math.min(window.devicePixelRatio, 2)
+            const canvas = renderer.domElement;
 
-            renderer.setSize(this.canvas.clientWidth, this.canvas.clientHeight);
-            renderer.setPixelRatio(pixelRatio);
+            // look up the size the canvas is being displayed
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+
+            // adjust displayBuffer size to match
+            if (canvas.width !== width || canvas.height !== height) {
+                // you must pass false here or three.js sadly fights the browser
+                renderer.setSize(width, height, false);
+                this.camera!.aspect = width / height;
+                this.camera!.updateProjectionMatrix();
+
+                const pixelRatio = Math.min(window.devicePixelRatio, 2);
+                renderer.setPixelRatio(pixelRatio);
+            }
         }
 
         window.addEventListener('resize', adaptCanvasSize);
-
         adaptCanvasSize();
     
         this.renderer = renderer;
@@ -251,6 +258,19 @@ export class SchematicRenderer {
         
             new TWEEN.Tween(source)
                 .to(pos, duration)
+                .easing(TWEEN.Easing.Exponential.InOut)
+                .start();
+        });
+    }
+
+    public setSchematicRotation(rotation: THREE.Euler, duration: number) {
+        this.assertInitialised();
+
+        this.scene!.traverse((object) => {
+            let source: THREE.Euler = object.rotation;
+        
+            new TWEEN.Tween(source)
+                .to(rotation, duration)
                 .easing(TWEEN.Easing.Exponential.InOut)
                 .start();
         });
