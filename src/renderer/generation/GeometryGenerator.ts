@@ -12,7 +12,7 @@ enum Offset {
     BOTTOM = 24
 }
 
-export class GeometryPlacer {
+export class GeometryGenerator {
     private schematic: UnpackedSchematic | undefined;
     private uvCache: { [index: string]: Float32Array } = {};
 
