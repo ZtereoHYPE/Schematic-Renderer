@@ -2,14 +2,12 @@
 import * as THREE from "three";
 import * as TWEEN from '@tweenjs/tween.js'
 
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer";
-import { SSAOPass } from "three/examples/jsm/postprocessing/SSAOPass";
-
 import { GeometryGenerator } from "./generation/GeometryGenerator";
 
 import Stats from 'stats.js';
 import { UnpackedSchematic } from "./generation/UnpackedSchematic";
 import { FollowCursorControls } from "../controls/FollowCursorControls";
+import { Controls } from "../controls/Controls";
 
 export enum RaycastEvents {
     HOVERED,
@@ -25,9 +23,7 @@ export class SchematicRenderer {
     private canvas: HTMLCanvasElement;
     private scene: THREE.Scene | undefined;
     private camera: THREE.PerspectiveCamera | undefined;
-
     private renderer: THREE.WebGLRenderer | undefined;
-    private composer: EffectComposer | undefined;
 
     private raycaster: THREE.Raycaster | undefined;
     private selectables: Set<THREE.InstancedMesh> = new Set();
@@ -38,7 +34,7 @@ export class SchematicRenderer {
     private clickCallbacks: Array<(mesh: THREE.InstancedMesh, index: number) => void> = [];
 
     private statsInstance = new Stats();
-    private controls: FollowCursorControls | undefined;
+    private controls: Controls | undefined;
 
     constructor(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -57,8 +53,6 @@ export class SchematicRenderer {
         this.initScene(fov);
         this.initRenderer();
         this.initRaycaster();
-        this.initControls();
-        // this.initPostProcessing();
         
         this.initialised = true;        
     }
@@ -73,11 +67,8 @@ export class SchematicRenderer {
         requestAnimationFrame(this.renderLoop.bind(this));
         TWEEN.update();
 
-        if (this.controls instanceof FollowCursorControls) {
-            this.controls.update();
-        }
+       this.controls?.update();
 
-        // this.composer!.render();
         this.renderer!.render(this.scene!, this.camera!);
         this.statsInstance.update();
         // console.log(this.renderer!.info.render);
@@ -96,9 +87,12 @@ export class SchematicRenderer {
         this.unhoverCallbacks = [];
 
         this.placer.create(schematic, this.addToScene.bind(this));
+    }
 
-        this.controls!.target = new THREE.Vector3(schematic.getSizeX() / 2, schematic.getSizeY() / 2, schematic.getSizeZ() / 2);
-        this.controls!.update();
+    public setControls(controls: Controls) {
+        this.assertInitialised();
+
+        this.controls = controls;
     }
 
     // todo: take in scene and camera???
@@ -143,25 +137,6 @@ export class SchematicRenderer {
         adaptCanvasSize();
     
         this.renderer = renderer;
-    }
-
-    private initPostProcessing() {
-        const composer = new EffectComposer(this.renderer!);
-
-        const ssaoPass = new SSAOPass(this.scene!, this.camera!);
-        ssaoPass.kernelRadius = 1;
-        ssaoPass.minDistance = 0.0001;
-        ssaoPass.maxDistance = 0.001;
-        composer.addPass(ssaoPass);
-    
-        this.composer = composer;
-    }
-
-    private initControls() {
-        const controls = new FollowCursorControls(this.camera!, this.renderer!.domElement);
-        controls.distance = 25;
-
-        this.controls = controls;
     }
     
     private addToScene(mesh: THREE.InstancedMesh) {

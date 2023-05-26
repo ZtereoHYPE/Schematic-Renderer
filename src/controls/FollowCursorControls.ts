@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Controls } from './Controls';
 
 /**
  * FollowCursorControls allow the target to softly follow where the cursor is.
@@ -7,10 +8,7 @@ import * as THREE from 'three';
  * @param domElement - The HTML element used for
  * event listeners.
  */
-export class FollowCursorControls {
-    private camera: THREE.Camera;
-
-    public enabled: boolean = true;
+export class FollowCursorControls extends Controls {
     private _target: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     private _distance: number = 20;
     public panSpeed: number = 1.0;
@@ -23,7 +21,7 @@ export class FollowCursorControls {
     private mouseY: number = 0;
 
     constructor(camera: THREE.Camera, domElement: HTMLElement) {
-        this.camera = camera;
+        super(camera);
 
         this.windowHalfX = domElement.clientWidth / 2;
         this.windowHalfY = domElement.clientHeight / 2;
